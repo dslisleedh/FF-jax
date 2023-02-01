@@ -140,6 +140,5 @@ class SupervisedModel:
         for layer, param in zip(self.layers, params):
             x = jnp.concatenate([x, y], axis=-1)
             x, goodness = layer(x, *param)
-            print(goodness.shape)
             goodness_total += goodness
         return goodness_total
