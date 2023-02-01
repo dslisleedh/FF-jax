@@ -5,7 +5,7 @@ from jax import lax
 import gin
 
 
-@gin.configurable
+# @gin.configurable
 def loss(goodness: jnp.ndarray, sign: jnp.ndarray, theta: float):
     # sign: -1 for positive samples, +1 for negative samples. To optimize pos/neg sample at the same time.
     assert goodness.shape[0] == sign.shape[0]

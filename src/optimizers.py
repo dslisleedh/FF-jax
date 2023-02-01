@@ -9,7 +9,7 @@ import gin
 
 # @gin.configurable
 class SGD:
-    def __init__(self, learning_rate: float = 1e-3):
+    def __init__(self, learning_rate: float = 1e-4):
         super().__init__()
         self.learning_rate = learning_rate
 
@@ -19,7 +19,7 @@ class SGD:
 
 # @gin.configurable
 class RMSProp:
-    def __init__(self, learning_rate: float = 1e-3, epsilon: float = 1e-8, rho: float = 0.9):
+    def __init__(self, learning_rate: float = 1e-4, epsilon: float = 1e-8, rho: float = 0.9):
         super().__init__()
         self.learning_rate = learning_rate
         self.epsilon = epsilon
@@ -34,7 +34,7 @@ class RMSProp:
 # @gin.configurable
 class Adam:
     def __init__(
-            self, learning_rate: float = 1e-3, epsilon: float = 1e-8,
+            self, learning_rate: float = 1e-4, epsilon: float = 1e-8,
             beta1: float = 0.9, beta2: float = 0.999
     ):
         super(Adam, self).__init__()
@@ -60,7 +60,7 @@ class Adam:
 # @gin.configurable
 class AdaBelief:
     def __init__(
-            self, learning_rate: float = 1e-3, epsilon: float = 1e-16,
+            self, learning_rate: float = 1e-4, epsilon: float = 1e-16,
             beta1: float = 0.9, beta2: float = 0.999
     ):
         self.learning_rate = learning_rate

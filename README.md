@@ -3,7 +3,7 @@
 Unofficial implementation of Forward-Forward algorithm by jax 
 
 ## TODO
- - [X] Layer and Models
+ - [ ] Layer and Models
  - [X] Losses and Optimizers
  - [ ] Preprocess codes for supervised model
  - [ ] Train codes of supervised model

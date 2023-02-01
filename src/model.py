@@ -20,15 +20,17 @@ class Layer:
             self.b_optimizer = deepcopy(optimizer())
 
     def get_params(self):
-        weights = [self.w]
+        params = [self.w]
         if self.use_bias:
-            weights.append(self.b)
-        return weights
+            params += [self.b]
+        return params
 
     def optimize(self, params_grad: Sequence):
-        self.w += self.w_optimizer(params_grad[0])
+        w = self.w_optimizer(params_grad[0])
+        self.w += w
         if self.use_bias:
-            self.b += self.b_optimizer(params_grad[1])
+            b = self.b_optimizer(params_grad[1])
+            self.b += b
 
     def _initialize(self, rng: jax.random.PRNGKey, shape: Sequence):
         self.w = self.init_func(rng, shape, dtype=jnp.float32)
@@ -58,13 +60,13 @@ class Dense(Layer):
     def initialize(self, x: jnp.ndarray, rng: jax.random.PRNGKey):
         shape = (x.shape[-1], self.n_units)
         super()._initialize(rng, shape)
-        return self(x)
+        return self(x, *self.get_params())
 
     @Layer.forward
-    def __call__(self, x: jnp.ndarray):
-        x = jnp.dot(x, self.w)
+    def __call__(self, x: jnp.ndarray, w: jnp.ndarray, b: Optional[jnp.ndarray] = None):
+        x = jnp.dot(x, w)
         if self.use_bias:
-            x = x + self.b
+            x = x + b
         x = jax.nn.relu(x)
         return x
 
@@ -94,37 +96,50 @@ class SupervisedModel:
             x, _ = layer.initialize(x, rngs[i])
             self.layers.append(layer)
 
-    @jax.jit
-    def train(self, batch):
-        x, y, sign = batch
+    @partial(jax.jit, static_argnums=(0,))
+    def train(self, x: jnp.ndarray, y: jnp.ndarray, sign: jnp.ndarray):
+        total_loss = 0
 
         for layer in self.layers:
             x = jnp.concatenate([x, y], axis=-1)
             params = layer.get_params()
 
+            @jax.jit
             def loss_fn(params):
-                x_normalized, goodness = layer(x, params)
-                loss = self.loss_fn(goodness, y, sign)
+                x_normalized, goodness = layer(x, *params)
+                loss = self.loss_fn(goodness, sign)
                 return loss, x_normalized
 
             grad_fn = jax.value_and_grad(loss_fn, has_aux=True)
             (loss, x), grad = grad_fn(params)
             layer.optimize(grad)
+            total_loss += loss
 
-    @jax.jit
+        return total_loss
+
+    def _inference(self, x: jnp.ndarray, y_num: int):  # For given y
+        y = jnp.ones((x.shape[0])) * y_num
+        y = jax.nn.one_hot(y, self.config.n_labels)
+        x = jnp.concatenate([x, y], axis=-1)
+
+        goodness_layer = jnp.zeros((len(self.layers),))
+        for i, layer in enumerate(self.layers):
+            x, _ = layer(x, layer.get_params())
+            goodness_layer[i] = jnp.sum(jnp.square(x))
+        return goodness_layer
+
+    @partial(jax.jit, static_argnums=(0,))
     def inference(self, x: jnp.ndarray):
         goodness_label = []
-        for i in range(self.config.n_labels):
-            y = jnp.ones((x.shape[0], 1)) * i
-            y = jax.nn.one_hot(y, self.config.n_labels)
 
-            goodness_layer = []
-            for layer in self.layers:
-                x = jnp.concatenate([x, y], axis=-1)
-                x, goodness = layer(x)
-                goodness_layer.append(goodness)
-            goodness_layer = jnp.concatenate(goodness_layer, axis=-1)
-            goodness_label.append(goodness_layer)
+        res = lax.fori_loop(0, self.config.n_labels, lambda i, _: self._inference(x, i), None)
+        return res
 
-        label = jnp.stack(goodness_label, axis=-1).sum(axis=-1).argmax(axis=-1)
-        return label
+    @partial(jax.jit, static_argnums=(0,))
+    def __call__(self, x: jnp.ndarray, y: jnp.ndarray):
+        res = jnp.zeros((x.shape[0], 1))
+        for layer in self.layers:
+            x = jnp.concatenate([x, y], axis=-1)
+            x, goodness = layer(x, layer.get_params())
+            res += goodness
+        return res
