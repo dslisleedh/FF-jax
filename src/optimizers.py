@@ -7,76 +7,108 @@ from typing import Optional
 import gin
 
 
-# @gin.configurable
-class SGD:
-    def __init__(self, learning_rate: float = 1e-4):
-        super().__init__()
+class Optimizer:
+    def update(self, grads: jnp.ndarray):
+        raise NotImplementedError
+
+    def __call__(self, params: jnp.ndarray, grads: jnp.ndarray):
+        update_val = self.update(grads)
+        return params + update_val
+
+
+class SGD(Optimizer):
+    def __init__(self, learning_rate: float = 1e-3):
         self.learning_rate = learning_rate
 
-    def __call__(self, grads: jnp.ndarray):
+    def update(self, grads: jnp.ndarray):
         return -self.learning_rate * grads
 
 
-# @gin.configurable
-class RMSProp:
-    def __init__(self, learning_rate: float = 1e-4, epsilon: float = 1e-8, rho: float = 0.9):
-        super().__init__()
+class MomentumSGD(Optimizer):
+    def __init__(self, learning_rate: float = 1e-3, momentum: float = 0.9):
+        self.learning_rate = learning_rate
+        self.momentum = momentum
+        self.velocity = 0.
+
+    def update(self, grads: jnp.ndarray):
+
+        self.velocity = self.momentum * self.velocity - self.learning_rate * grads
+        return self.velocity
+
+
+class NesterovMomentumSGD(Optimizer):
+    def __init__(self, learning_rate: float = 1e-3, momentum: float = 0.9):
+        self.learning_rate = learning_rate
+        self.momentum = momentum
+        self.velocity = 0.
+
+    def update(self, grads: jnp.ndarray):
+        self.velocity = self.momentum * self.velocity - self.learning_rate * grads
+        return self.momentum * self.velocity - (self.learning_rate * grads)
+
+
+class AdaGrad(Optimizer):
+    def __init__(self, learning_rate: float = 1e-3, epsilon: float = 1e-8):
+        self.learning_rate = learning_rate
+        self.epsilon = epsilon
+        self.g_acc = 0.
+
+    def update(self, grads: jnp.ndarray):
+        self.g_acc += grads ** 2
+        return -self.learning_rate / (self.epsilon + jnp.sqrt(self.g_acc)) * grads
+
+
+class RMSProp(Optimizer):
+    def __init__(self, learning_rate: float = 1e-3, epsilon: float = 1e-8, rho: float = 0.9):
         self.learning_rate = learning_rate
         self.epsilon = epsilon
         self.rho = rho
         self.g_acc = 0.
 
-    def __call__(self, grads: jnp.ndarray):
-        self.g_acc = self.rho * self.g_acc + (1. - self.rho) * jnp.square(grads)
-        return -self.learning_rate * grads / (jnp.sqrt(self.g_acc) + self.epsilon)
+    def update(self, grads: jnp.ndarray):
+        self.g_acc = self.rho * self.g_acc + (1 - self.rho) * grads ** 2
+        return -self.learning_rate / (self.epsilon + jnp.sqrt(self.g_acc)) * grads
 
 
-# @gin.configurable
-class Adam:
-    def __init__(
-            self, learning_rate: float = 1e-4, epsilon: float = 1e-8,
-            beta1: float = 0.9, beta2: float = 0.999
-    ):
-        super(Adam, self).__init__()
+class Adam(Optimizer):
+    def __init__(self, learning_rate: float = 1e-3, epsilon: float = 1e-8, beta1: float = 0.9, beta2: float = 0.999):
         self.learning_rate = learning_rate
         self.epsilon = epsilon
         self.beta1 = beta1
         self.beta2 = beta2
-        self.m_acc = 0.
-        self.v_acc = 0.
+        self.m = 0.
+        self.v = 0.
         self.beta1_div = 1.
         self.beta2_div = 1.
 
-    def __call__(self, grads: jnp.ndarray):
-        self.m_acc = self.beta1 * self.m_acc + (1. - self.beta1) * grads
-        self.v_acc = self.beta2 * self.v_acc + (1. - self.beta2) * jnp.square(grads)
+    def update(self, grads: jnp.ndarray):
         self.beta1_div *= self.beta1
         self.beta2_div *= self.beta2
-        m_hat = self.m_acc / (1. - self.beta1_div)
-        v_hat = self.v_acc / (1. - self.beta2_div)
-        return -self.learning_rate * m_hat / (jnp.sqrt(v_hat) + self.epsilon)
+
+        self.m = self.beta1 * self.m + (1 - self.beta1) * grads
+        self.v = self.beta2 * self.v + (1 - self.beta2) * grads ** 2
+        m_hat = self.m / (1 - self.beta1_div)
+        v_hat = self.v / (1 - self.beta2_div)
+        return -self.learning_rate / (self.epsilon + jnp.sqrt(v_hat)) * m_hat
 
 
-# @gin.configurable
-class AdaBelief:
-    def __init__(
-            self, learning_rate: float = 1e-4, epsilon: float = 1e-16,
-            beta1: float = 0.9, beta2: float = 0.999
-    ):
+class AdaBelief(Optimizer):
+    def __init__(self, learning_rate: float = 1e-3, epsilon: float = 1e-16, beta1: float = 0.9, beta2: float = 0.999):
         self.learning_rate = learning_rate
         self.epsilon = epsilon
         self.beta1 = beta1
         self.beta2 = beta2
-        self.m_acc = 0.
-        self.v_acc = 0.
+        self.m = 0.
+        self.s = 0.
         self.beta1_div = 1.
         self.beta2_div = 1.
 
-    def __call__(self, grads: jnp.ndarray):
-        self.m_acc = self.beta1 * self.m_acc + (1. - self.beta1) * grads
-        self.v_acc = self.beta2 * self.v_acc + (1. - self.beta2) * jnp.square(grads - self.m_acc)
-        self.beta1_div *= self.beta1
-        self.beta2_div *= self.beta2
-        m_hat = self.m_acc / (1. - self.beta1_div)
-        v_hat = self.v_acc / (1. - self.beta2_div)
-        return -self.learning_rate * m_hat / (jnp.sqrt(v_hat) + self.epsilon)
+    def update(self, grads: jnp.ndarray):
+        self.beta1_div = self.beta1_div * self.beta1
+        self.beta2_div = self.beta2_div * self.beta2
+
+        self.m = self.beta1 * self.m + (1 - self.beta1) * grads
+        self.s = self.beta2 * self.s + (1 - self.beta2) * (grads - self.m) ** 2 + self.epsilon
+        m_hat = self.m / (1 - self.beta1_div)
+        s_hat = self.s / (1 - self.beta2_div)
+        return -self.learning_rate * m_hat / (jnp.sqrt(s_hat) + self.epsilon)
