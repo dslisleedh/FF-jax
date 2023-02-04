@@ -1,0 +1,23 @@
+train.model = @SupervisedModel()
+
+SupervisedModel.loss_fn = @simple_loss
+SupervisedModel.n_layers = 2
+SupervisedModel.theta = 5.
+SupervisedModel.n_labels = 10
+
+SupervisedModel.layer = @Dense
+Dense.n_units = 2048
+Dense.init_func = @jax.nn.initializers.he_normal
+Dense.use_bias = True
+Dense.optimizer = @AdaBelief
+
+AdaBelief.learning_rate = 2e-4
+AdaBelief.epsilon = 1e-16
+AdaBelief.beta1 = .9
+AdaBelief.beta2 = .999
+
+train.datasets = @get_datasets()
+get_datasets.batch_size = 512
+train.seed = 42
+train.epochs = 100
+train.early_stopping = 15

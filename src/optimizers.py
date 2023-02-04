@@ -16,6 +16,7 @@ class Optimizer:
         return params + update_val
 
 
+@gin.configurable
 class SGD(Optimizer):
     def __init__(self, learning_rate: float = 1e-3):
         self.learning_rate = learning_rate
@@ -24,6 +25,7 @@ class SGD(Optimizer):
         return -self.learning_rate * grads
 
 
+@gin.configurable
 class MomentumSGD(Optimizer):
     def __init__(self, learning_rate: float = 1e-3, momentum: float = 0.9):
         self.learning_rate = learning_rate
@@ -36,6 +38,7 @@ class MomentumSGD(Optimizer):
         return self.velocity
 
 
+@gin.configurable
 class NesterovMomentumSGD(Optimizer):
     def __init__(self, learning_rate: float = 1e-3, momentum: float = 0.9):
         self.learning_rate = learning_rate
@@ -47,6 +50,7 @@ class NesterovMomentumSGD(Optimizer):
         return self.momentum * self.velocity - (self.learning_rate * grads)
 
 
+@gin.configurable
 class AdaGrad(Optimizer):
     def __init__(self, learning_rate: float = 1e-3, epsilon: float = 1e-8):
         self.learning_rate = learning_rate
@@ -58,6 +62,7 @@ class AdaGrad(Optimizer):
         return -self.learning_rate / (self.epsilon + jnp.sqrt(self.g_acc)) * grads
 
 
+@gin.configurable
 class RMSProp(Optimizer):
     def __init__(self, learning_rate: float = 1e-3, epsilon: float = 1e-8, rho: float = 0.9):
         self.learning_rate = learning_rate
@@ -70,6 +75,7 @@ class RMSProp(Optimizer):
         return -self.learning_rate / (self.epsilon + jnp.sqrt(self.g_acc)) * grads
 
 
+@gin.configurable
 class Adam(Optimizer):
     def __init__(self, learning_rate: float = 1e-3, epsilon: float = 1e-8, beta1: float = 0.9, beta2: float = 0.999):
         self.learning_rate = learning_rate
@@ -92,6 +98,7 @@ class Adam(Optimizer):
         return -self.learning_rate / (self.epsilon + jnp.sqrt(v_hat)) * m_hat
 
 
+@gin.configurable
 class AdaBelief(Optimizer):
     def __init__(self, learning_rate: float = 1e-3, epsilon: float = 1e-16, beta1: float = 0.9, beta2: float = 0.999):
         self.learning_rate = learning_rate
