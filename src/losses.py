@@ -10,7 +10,7 @@ def simple_loss(goodness: jnp.ndarray, sign: jnp.ndarray, theta: float):
     # sign: -1 for positive samples, +1 for negative samples. To optimize pos/neg sample at the same time.
     goodness = goodness.reshape(goodness.shape[0], -1)
     return jnp.mean(
-        jnp.square(jnp.sum((jnp.square(goodness) - theta) * sign, axis=1))
+        jnp.sum((goodness - theta) * sign, axis=1)
     )
 
 
@@ -30,3 +30,4 @@ def probabilistic_loss(goodness: jnp.ndarray, sign: jnp.ndarray, theta: float):
     prob = jax.nn.sigmoid(goodness - theta)
     loss = jnp.log(prob + 1e-6) * sign
     return jnp.mean(loss)
+

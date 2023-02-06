@@ -45,7 +45,8 @@ def train(
 
     for e in range(epochs):
         with tqdm(
-                train_ds.as_numpy_iterator(), desc=f"Epoch {e+1}/{epochs} Training ...", colour='cyan'
+                train_ds.as_numpy_iterator(), desc=f"Epoch {e+1}/{epochs} Training ...", colour='cyan',
+                total=train_ds.cardinality().numpy()
         ) as pbar:
             epoch_train_loss = []
             for batch in pbar:
@@ -58,7 +59,8 @@ def train(
                 pbar.set_postfix(loss=sum(epoch_train_loss) / len(epoch_train_loss))
 
         with tqdm(
-            valid_ds.as_numpy_iterator(), desc=f"Epoch {e+1}/{epochs} Validation ...", colour='green'
+            valid_ds.as_numpy_iterator(), desc=f"Epoch {e+1}/{epochs} Validation ...", colour='red',
+            total=valid_ds.cardinality().numpy()
         ) as pbar2:
             y_true = []
             y_pred = []

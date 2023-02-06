@@ -7,17 +7,18 @@ SupervisedModel.n_labels = 10
 
 SupervisedModel.layer = @Dense
 Dense.n_units = 2048
-Dense.init_func = @jax.nn.initializers.he_normal
+Dense.init_func = @jax.nn.initializers.lecun_normal
 Dense.use_bias = True
-Dense.optimizer = @AdaBelief
+Dense.optimizer = @Optimizer/AdaBelief
 
-AdaBelief.learning_rate = 1e-3
-AdaBelief.epsilon = 1e-16
-AdaBelief.beta1 = .9
-AdaBelief.beta2 = .999
+Optimizer/learning_rate = 1e-3
+Optimizer/epsilon = 1e-16
+Optimizer/beta1 = .5
+Optimizer/beta2 = .999
 
 train.datasets = @get_datasets()
-get_datasets.batch_size = 512
+get_datasets.batch_size = 2048
+get_datasets.pos_percentage = .75
 train.seed = 42
-train.epochs = 500
+train.epochs = 1000
 train.early_stopping = 15
