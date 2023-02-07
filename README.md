@@ -12,3 +12,5 @@ Unofficial implementation of Forward-Forward algorithm by jax.
  - [ ] Preprocess codes for unsupervised model
  - [ ] Train codes of unsupervised model
  - [ ] Online training codes
+
+ - [ ] Fix layers to be parallelized.

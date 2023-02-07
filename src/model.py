@@ -29,7 +29,7 @@ class Layer:
             return_val += [b]
         return return_val
 
-    @staticmethod  # For further implementation like Convolution Layer
+    @staticmethod
     def forward(fn):
         def div_by_norm(*args, **kwargs):
             x = fn(*args, **kwargs)
@@ -57,6 +57,36 @@ class Dense(Layer):
     @Layer.forward
     def __call__(self, x: jnp.ndarray, w: jnp.ndarray, b: Optional[jnp.ndarray] = None):
         x = jnp.dot(x, w)
+        if self.use_bias:
+            x = x + b
+        x = jax.nn.relu(x)
+        return x
+
+
+@gin.configurable
+class Conv2D(Layer):
+    def __init__(
+            self, n_filters: int, kernel_size: int | Sequence[int], init_func: callable, use_bias: bool,
+            optimizer: callable, padding: str = 'SAME'
+    ):
+        super(Conv2D, self).__init__(init_func, use_bias, optimizer)
+        self.n_filters = n_filters
+        self.kernel_size = kernel_size if type(kernel_size) != int else (kernel_size, kernel_size)
+        assert padding.upper() in ['SAME', 'VALID'], 'Padding must be either SAME or VALID'
+        self.padding = padding.upper()
+
+    def initialize(self, x: jnp.ndarray, rng: jax.random.PRNGKey):
+        shape = self.kernel_size + (x.shape[-1], self.n_filters)
+        params = super()._initialize(rng, shape)
+        if self.use_bias:
+            params[1] = params[1].reshape(1, 1, 1, -1)
+        return self(x, *params), params
+
+    @Layer.forward
+    def __call__(self, x: jnp.ndarray, w: jnp.ndarray, b: Optional[jnp.ndarray] = None):
+        x = lax.conv_general_dilated(
+            x, w, (1, 1), self.padding, dimension_numbers=('NHWC', 'HWIO', 'NHWC')
+        )
         if self.use_bias:
             x = x + b
         x = jax.nn.relu(x)
@@ -101,11 +131,11 @@ class SupervisedModel:
         grads = []
         _loss = jnp.zeros(())
 
-        x = jnp.concatenate([x, y], axis=-1)
+        x = jnp.concatenate([x, y], axis=-1)  # In paper, they replace first 10 pixels with label.
 
         for layer, param in zip(self.layers, params):
             def loss_fn(params):
-                x_normalized, goodness = layer(x, *params)
+                x_normalized, goodness = layer(lax.stop_gradient(x), *params)
                 loss = self.loss_fn(goodness / layer.n_units, sign)
                 return loss, x_normalized
 
@@ -116,7 +146,6 @@ class SupervisedModel:
         return _loss, grads
 
     def _update_gradients(self, params: Sequence[jnp.ndarray], grads: Sequence[jnp.ndarray]):
-        # Later: Think about gradient updates to be vectorized?
         params_updated = []
         for layer, param, grad in zip(self.layers, params, grads):
             params = layer.optimize(param, grad)
@@ -146,7 +175,6 @@ class SupervisedModel:
         goodness_total = jnp.zeros((x.shape[0],))
         x = jnp.concatenate([x, y], axis=-1)
         for layer, param in zip(self.layers, params):
-            # x = jnp.concatenate([x, y], axis=-1) Concatenate x, y for every layers like diffusion? of just input?
             x, goodness = layer(x, *param)
             goodness_total += goodness
         return goodness_total
