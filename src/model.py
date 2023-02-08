@@ -134,9 +134,9 @@ class SupervisedModel:
         x = jnp.concatenate([x, y], axis=-1)  # In paper, they replace first 10 pixels with label.
 
         for layer, param in zip(self.layers, params):
-            def loss_fn(params):
-                x_normalized, goodness = layer(lax.stop_gradient(x), *params)
-                loss = self.loss_fn(goodness / layer.n_units, sign)
+            def loss_fn(p):
+                x_normalized, goodness = layer(lax.stop_gradient(x), *p)
+                loss = self.loss_fn(goodness, sign)
                 return loss, x_normalized
 
             grad_fn = jax.value_and_grad(loss_fn, has_aux=True)
@@ -148,8 +148,8 @@ class SupervisedModel:
     def _update_gradients(self, params: Sequence[jnp.ndarray], grads: Sequence[jnp.ndarray]):
         params_updated = []
         for layer, param, grad in zip(self.layers, params, grads):
-            params = layer.optimize(param, grad)
-            params_updated.append(params)
+            param_ = layer.optimize(param, grad)
+            params_updated.append(param_)
         return params_updated
 
     def train_step(self, x: jnp.ndarray, y: jnp.ndarray, sign: jnp.ndarray, params: Sequence[jnp.ndarray]):

@@ -7,17 +7,20 @@ SupervisedModel.n_labels = 10
 
 SupervisedModel.layer = @Dense
 Dense.n_units = 2000
-Dense.init_func = @jax.nn.initializers.glorot_normal
+Dense.init_func = @jax.nn.initializers.variance_scaling
+jax.nn.initializers.variance_scaling.scale = .02
+jax.nn.initializers.variance_scaling.mode = 'fan_in'
+jax.nn.initializers.variance_scaling.distribution = 'truncated_normal'
 Dense.use_bias = True
 Dense.optimizer = @AdaBelief
 
-AdaBelief.learning_rate = 3e-3
+AdaBelief.learning_rate = 2e-4
 AdaBelief.epsilon = 1e-16
-AdaBelief.beta1 = .5
+AdaBelief.beta1 = .9
 AdaBelief.beta2 = .999
 
 train.datasets = @get_datasets()
-get_datasets.batch_size = 256
+get_datasets.batch_size = 512
 get_datasets.pos_percentage = .5
 get_datasets.flatten = True
 train.seed = 42

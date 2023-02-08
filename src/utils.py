@@ -18,6 +18,7 @@ def import_external_configures():
     _register_initializers(jax.nn.initializers.lecun_normal)
     _register_initializers(jax.nn.initializers.glorot_normal)
     _register_initializers(jax.nn.initializers.he_normal)
+    _register_initializers(jax.nn.initializers.variance_scaling)
 
 
 @gin.configurable
