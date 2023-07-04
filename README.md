@@ -11,6 +11,8 @@ Unofficial implementation of Forward-Forward algorithm by jax.
  - [X] Train codes of supervised model
  - [X] Fix LayerNorm(To calculate norm at channel)
  - [X] Fix optimizer weights to be not stored in class for load
+ - [ ] Add Local Conv With Peer Normalization
+ - [ ] Add other losses
  - [ ] Preprocess codes for unsupervised model
  - [ ] Train codes of unsupervised model
  - [ ] Online training codes
