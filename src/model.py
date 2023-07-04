@@ -30,15 +30,21 @@ class Layer:
         return return_val
 
     @staticmethod
-    def forward(fn):
+    def forward(fn, eps: float = 1e-8):
         def div_by_norm(*args, **kwargs):
+            """
+            In the paper, they layer normalized the active vector
+            using simple normalization not subtracting mean and dividing std.
+
+            if Dense:
+                (B, N) / (B, 1)
+            if Conv2D:
+                (B, H, W, C) / (B, H, W, 1)
+            """
             x = fn(*args, **kwargs)
-            shape = x.shape
-            x_flatten = x.reshape(shape[0], -1)
-            x_div = jnp.linalg.norm(x_flatten, axis=-1, ord=2)
-            x_div = jnp.reshape(x_div, (shape[0], *(1 for _ in shape[1:])))
-            normalized = x / (x_div + 1e-8)
-            goodness = jnp.sum(jnp.square(x_flatten), axis=-1)
+            x_div = jnp.linalg.norm(x, axis=-1, ord=2, keepdims=True)
+            normalized = x / (x_div + eps)
+            goodness = jnp.sum(jnp.square(x), axis=-1)
             return normalized, goodness
         return div_by_norm
 
