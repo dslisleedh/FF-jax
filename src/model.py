@@ -119,11 +119,10 @@ class Dense(Layer):
 @gin.configurable
 class SupervisedModel:
     def __init__(
-            self, n_layers: int, loss_fn: callable, theta: float,
-            n_labels: int, layer: Layer
+            self, n_layers: int, loss_fn: callable, n_labels: int, layer: Layer
     ):
         self.n_layers = n_layers
-        self.loss_fn = partial(loss_fn, theta=theta)
+        self.loss_fn = loss_fn
         self.layer = layer
         self.layers = []
         self.n_labels = n_labels

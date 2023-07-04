@@ -1,9 +1,12 @@
 train.model = @SupervisedModel()
 
-SupervisedModel.loss_fn = @probabilistic_loss
+SupervisedModel.loss_fn = @simba_loss
 SupervisedModel.n_layers = 4
-SupervisedModel.theta = 1.5
 SupervisedModel.n_labels = 10
+
+simba_loss.alpha = 1.
+# for other losses that using theta
+# softplus_loss.theta = 1.5
 
 SupervisedModel.layer = @Dense
 Dense.n_units = 2000
