@@ -3,13 +3,15 @@ import jax.numpy as jnp
 from jax import lax
 
 from typing import Optional
+from abc import abstractmethod
 
 import gin
 
 
 class Optimizer:
+    @abstractmethod
     def update(self, grads: jnp.ndarray):
-        raise NotImplementedError
+        pass
 
     def __call__(self, params: jnp.ndarray, grads: jnp.ndarray):
         update_val = self.update(grads)
@@ -33,7 +35,6 @@ class MomentumSGD(Optimizer):
         self.velocity = 0.
 
     def update(self, grads: jnp.ndarray):
-
         self.velocity = self.momentum * self.velocity - self.learning_rate * grads
         return self.velocity
 
