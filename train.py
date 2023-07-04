@@ -2,6 +2,12 @@ import jax
 import jax.numpy as jnp
 import jax.lax as lax
 
+# To prevent cuda-related errors when import jax and tensorflow in the same file
+a = jnp.ones((16, 256, 256, 3))
+del a
+import tensorflow as tf
+tf.config.set_visible_devices([], 'GPU')
+
 from src.model import *
 from src.preprocessing import *
 from src.optimizers import *
@@ -16,9 +22,8 @@ from omegaconf import DictConfig, OmegaConf
 from tqdm import tqdm
 import logging
 
-import tensorflow as tf
-tf.config.set_visible_devices([], 'GPU')
 import tensorflow_datasets as tfds
+from tensorboardX import SummaryWriter
 import numpy as np
 import pickle
 
@@ -28,7 +33,7 @@ model_logger = logging.getLogger('Model')
 
 @gin.configurable
 def train(
-        model: callable, datasets: Sequence[tf.data.Dataset], seed: int,
+        model: callable, datasets: Sequence, seed: int,
         epochs: int, early_stopping: EarlyStopping
 ):
     with open('./hparams.gin', 'w') as f:
