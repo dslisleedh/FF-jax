@@ -2,13 +2,13 @@ import gin
 
 import jax.numpy as jnp
 import jax.nn.initializers
-import jax.numpy as jnp
 
 import logging
 from copy import deepcopy
-from typing import Sequence
+from typing import Sequence, Any
 
 
+Pytree = Any
 es_logger = logging.getLogger('EarlyStopping')
 
 
@@ -33,25 +33,27 @@ class EarlyStopping:
         self.verbose = verbose
         self.is_stop = False
         self.best_params = None
+        self.best_opt_state = None
         self.best_epoch = 0
 
-    def update(self, params, epoch):
+    def update(self, params, state, epoch):
         self.best_params = deepcopy(params)
+        self.best_opt_state = deepcopy(state)
         self.best_epoch = epoch
         self.count = 0
 
-    def __call__(self, check_val: float, params: Sequence[jnp.ndarray]):
+    def __call__(self, check_val: float, params: Sequence[jnp.ndarray], opt_state: Sequence[Pytree]):
         self.epochs += 1
         if self.mode == 'max':
             if check_val > self.history:
                 self.history = check_val
-                self.update(params, self.epochs)
+                self.update(params, opt_state, self.epochs)
             else:
                 self.count += 1
         else:
             if check_val < self.history:
                 self.history = check_val
-                self.update(params, self.epochs)
+                self.update(params, opt_state, self.epochs)
             else:
                 self.count += 1
         if self.count >= self.patience:
@@ -61,4 +63,4 @@ class EarlyStopping:
                 es_logger.info(f'Restore best params at {self.best_epoch}th epoch')
         else:
             if self.verbose:
-                es_logger.info(f'Current patience: {self.count}/{self.patience} - Current best: {self.history}')
+                es_logger.info(f'Current patience: {self.count}/{self.patience} - Current best: {self.history:.4f}%')

@@ -48,7 +48,7 @@ def train(
     rng = jax.random.PRNGKey(seed)
     rng, init_rng = jax.random.split(rng)
 
-    params = model.initialize(jnp.ones((16, 28*28)), init_rng)
+    params, opt_state = model.initialize(jnp.ones((16, 28*28)), init_rng)
 
     for e in range(epochs):
         with tqdm(
@@ -61,14 +61,14 @@ def train(
                 x = jnp.array(x, dtype=jnp.float32)
                 y = jnp.array(y, dtype=jnp.float32)
                 sign = jnp.array(sign, dtype=jnp.float32)
-                loss, params = model.train_step(x, y, sign, params)
+                loss, params, opt_state = model.train_step(x, y, sign, params, opt_state)
                 epoch_train_loss.append(loss)
                 pbar.set_postfix(loss=sum(epoch_train_loss) / len(epoch_train_loss))
                 with tensorboard_logger.as_default():
                     tf.summary.scalar('train_loss', sum(epoch_train_loss) / len(epoch_train_loss), step=e)
 
         with tqdm(
-            valid_ds.as_numpy_iterator(), desc=f"Epoch {e+1}/{epochs} Validation ...", colour='red',
+            valid_ds.as_numpy_iterator(), desc=f"Epoch {e+1}/{epochs} Validating ...", colour='red',
             total=valid_ds.cardinality().numpy()
         ) as pbar2:
             y_true = []
@@ -83,16 +83,19 @@ def train(
             y_true = jnp.concatenate(y_true)
             y_pred = jnp.concatenate(y_pred)
             acc = (sum(y_true == y_pred) / len(y_true)) * 100.
-            model_logger.info(f'Epoch {e+1}/{epochs} Validation Result ... ACC: {acc}')
+            model_logger.info(f'Epoch {e+1}/{epochs} Validation Result ... ACC: {acc:.4f}%')
             with tensorboard_logger.as_default():
                 tf.summary.scalar('valid_acc', acc, step=e)
-            early_stopping(acc, params)
+            early_stopping(acc, params, opt_state)
             if early_stopping.is_stop:
                 break
 
     best_params = early_stopping.best_params
+    best_opt_state = early_stopping.best_opt_state
     with open('./best_params.pkl', 'wb') as f:
         pickle.dump(best_params, f)
+    with open('./best_opt_state.pkl', 'wb') as f:
+        pickle.dump(best_opt_state, f)
 
     with tqdm(
         test_ds.as_numpy_iterator(), desc=f"Testing ...", colour='green', total=test_ds.cardinality().numpy()
@@ -109,7 +112,7 @@ def train(
         y_true = jnp.concatenate(y_true)
         y_pred = jnp.concatenate(y_pred)
         test_acc = (sum(y_true == y_pred) / len(y_true)) * 100.
-        model_logger.info(f'Test Result ... ACC: {test_acc}')
+        model_logger.info(f'Test Result ... ACC: {test_acc:.4f}%')
 
 
 @hydra.main(config_path='config', config_name='config', version_base=None)
