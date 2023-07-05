@@ -115,12 +115,6 @@ class Dense(Layer):
 #         return x
 
 
-# @gin.configurable
-# class UnsupervisedModel:  # Will implement this later. HOW TO MAKE HYBRID SAMPLE?
-#     def __init__(self, config):
-#         raise NotImplementedError
-
-
 @gin.configurable
 class SupervisedModel:
     def __init__(

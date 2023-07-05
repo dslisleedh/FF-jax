@@ -29,6 +29,7 @@ import pickle
 
 
 model_logger = logging.getLogger('Model')
+cpu = jax.devices("cpu")[0]
 
 
 @gin.configurable
@@ -77,8 +78,8 @@ def train(
                 x, y = batch
                 x = jnp.array(x, dtype=jnp.float32)
                 y = jnp.array(y, dtype=jnp.float32)
-                y_true.append(y)
-                y_pred.append(model.inference(x, params))
+                y_true.append(jax.device_put(y, cpu))
+                y_pred.append(jax.device_put(model.inference(x, params), cpu))
 
             y_true = jnp.concatenate(y_true)
             y_pred = jnp.concatenate(y_pred)
