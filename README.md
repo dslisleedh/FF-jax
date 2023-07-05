@@ -13,6 +13,8 @@ Unofficial implementation of Forward-Forward algorithm by jax.
  - [X] Fix optimizer weights to be not stored in class for load
  - [ ] Add Local Conv With Peer Normalization
  - [ ] Add other losses
- - [ ] Preprocess codes for unsupervised model
- - [ ] Train codes of unsupervised model
- - [ ] Online training codes
+
+
+## What about...
+ - change preprocessing codes to make pairs of positive sample and negative samples for simba loss?
+ - add online training model?
