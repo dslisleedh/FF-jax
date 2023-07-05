@@ -36,7 +36,7 @@ def _get_pos_sub_neg(goodness: jnp.ndarray) -> jnp.ndarray:
 
 
 @gin.configurable
-def simba_loss(goodness: jnp.ndarray, sign: jnp.ndarray, alpha: float) -> jnp.ndarray:
+def symba_loss(goodness: jnp.ndarray, sign: jnp.ndarray, alpha: float) -> jnp.ndarray:
     sub_val = _get_pos_sub_neg(goodness)
     return jnp.mean(
         jnp.log(1. + jnp.exp(-alpha * sub_val))
@@ -44,7 +44,7 @@ def simba_loss(goodness: jnp.ndarray, sign: jnp.ndarray, alpha: float) -> jnp.nd
 
 
 @gin.configurable
-def swish_simba_loss(goodness: jnp.ndarray, sign: jnp.ndarray, alpha: float) -> jnp.ndarray:
+def swish_symba_loss(goodness: jnp.ndarray, sign: jnp.ndarray, alpha: float) -> jnp.ndarray:
     sub_val = _get_pos_sub_neg(goodness)
     return jnp.mean(
         (-alpha * sub_val) * jax.nn.sigmoid(-alpha * sub_val)

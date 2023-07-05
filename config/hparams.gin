@@ -1,10 +1,10 @@
 train.model = @SupervisedModel()
 
-SupervisedModel.loss_fn = @swish_simba_loss
+SupervisedModel.loss_fn = @swish_symba_loss
 SupervisedModel.n_layers = 4
 SupervisedModel.n_labels = 10
 
-swish_simba_loss.alpha = 4.
+swish_symba_loss.alpha = 4.
 # for other losses that using theta
 # softplus_loss.theta = 2.
 
