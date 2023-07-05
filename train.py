@@ -23,7 +23,6 @@ from tqdm import tqdm
 import logging
 
 import tensorflow_datasets as tfds
-from tensorboardX import SummaryWriter
 import numpy as np
 import pickle
 

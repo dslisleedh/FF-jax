@@ -25,6 +25,7 @@ AdaBelief.beta2 = .999
 train.datasets = @get_datasets()
 get_datasets.batch_size = 256
 get_datasets.flatten = True
+
 train.seed = 42
 train.epochs = 1000
 train.early_stopping = @EarlyStopping()
