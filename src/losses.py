@@ -40,3 +40,13 @@ def simba_loss(goodness: jnp.ndarray, sign: jnp.ndarray, alpha: float):
     return jnp.log(
         1. + jnp.exp(-alpha * (mu_pos - mu_neg))
     )
+
+
+@gin.configurable
+def swish_simba_loss(goodness: jnp.ndarray, sign: jnp.ndarray, alpha: float):
+    mu_pos = jnp.sum(jnp.where(sign == -1, goodness, 0)) / jnp.sum(sign == -1)
+    mu_neg = jnp.sum(jnp.where(sign == 1, goodness, 0)) / jnp.sum(sign == 1)
+
+    return (-alpha * (mu_pos - mu_neg)) * jnp.log(
+        1. + jnp.exp(-alpha * (mu_pos - mu_neg))
+    )
