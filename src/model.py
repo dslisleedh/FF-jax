@@ -12,6 +12,30 @@ import gin
 Pytree = Any
 
 
+def forward_layernorm(fn, eps: float = 1e-8):
+    def _layer_norm_fast_approx(*args, **kwargs):
+        """
+        In the paper, they layer normalized the active vector
+        using simple normalization not subtracting mean and dividing std.
+
+        if Dense:
+            (B, N) / (B, 1)
+        if Conv2D:
+            (B, H, W, C) / (B, H, W, 1)
+        """
+        x = fn(*args, **kwargs)
+        shape = x.shape
+        norm = jnp.linalg.norm(x, axis=-1, ord=2, keepdims=True)
+        normalized = x / (norm + eps)
+        goodness = jnp.sum(jnp.square(x), axis=[i for i in range(1, len(shape))])
+        return normalized, goodness
+    return _layer_norm_fast_approx
+
+
+# def forward_peernorm <<< I don't understand this yet. Will implement later.
+# Maybe Rebase all layers when implementing local conv + peernorm.
+
+
 class Layer:
     def __init__(self, init_func: callable, use_bias: bool, optimizer: callable):
         self.init_func = init_func()
@@ -28,7 +52,7 @@ class Layer:
         return update_params, new_states
 
     def _initialize(self, rng: jax.random.PRNGKey, shape: Sequence):
-        params = [self.init_func(rng, shape, dtype=jnp.float32)]  #
+        params = [self.init_func(rng, shape, dtype=jnp.float32)]  # w
         if self.use_bias:
             b = jnp.zeros(shape[-1])
             params += [b]
@@ -38,25 +62,6 @@ class Layer:
             opt_state.append(optimizer.initialize(p))
 
         return params, opt_state
-
-    @staticmethod
-    def forward(fn, eps: float = 1e-8):
-        def div_by_norm(*args, **kwargs):
-            """
-            In the paper, they layer normalized the active vector
-            using simple normalization not subtracting mean and dividing std.
-
-            if Dense:
-                (B, N) / (B, 1)
-            if Conv2D:
-                (B, H, W, C) / (B, H, W, 1)
-            """
-            x = fn(*args, **kwargs)
-            x_div = jnp.linalg.norm(x, axis=-1, ord=2, keepdims=True)
-            normalized = x / (x_div + eps)
-            goodness = jnp.sum(jnp.square(x), axis=-1)
-            return normalized, goodness
-        return div_by_norm
 
 
 @gin.configurable
@@ -70,7 +75,7 @@ class Dense(Layer):
         params, opt_state = super()._initialize(rng, shape)
         return self(x, *params), params, opt_state
 
-    @Layer.forward
+    @forward_layernorm
     def __call__(self, x: jnp.ndarray, w: jnp.ndarray, b: Optional[jnp.ndarray] = None):
         x = jnp.dot(x, w)
         if self.use_bias:
