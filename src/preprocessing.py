@@ -5,28 +5,24 @@ from functools import partial
 import tensorflow as tf
 tf.config.set_visible_devices([], 'GPU')
 import tensorflow_datasets as tfds
+import numpy as np
 
 
 def preprocess(
         x: tf.Tensor, y: tf.Tensor, n_labels: int, augment: bool = True, flatten: bool = True,
 ):
-    """
-    1. Crop the image randomly to 26-28 pixels
-    2. Resize the image to 28x28
-    3. Normalize the image to [0, 1]
-    4. Flatten the image
-
-    5-1. Generate negative sample randomly
-    5-2. Generate pairs of negative samples.
-    """
     x = tf.cast(x, tf.float32) / 255.
     y = tf.cast(y, tf.float32)
 
     if augment:
-        crop_h = tf.random.uniform([], minval=25, maxval=28, dtype=tf.int32)
-        crop_w = tf.random.uniform([], minval=25, maxval=28, dtype=tf.int32)
-        x = tf.image.random_crop(x, (tf.shape(x)[0], crop_h, crop_w, 1))
-        x = tf.image.resize(x, (28, 28))
+        h = tf.shape(x)[1]
+        w = tf.shape(x)[2]
+        c = tf.shape(x)[3]
+
+        crop_h = tf.random.uniform([], minval=h-3, maxval=h, dtype=tf.int32)
+        crop_w = tf.random.uniform([], minval=w-3, maxval=w, dtype=tf.int32)
+        x = tf.image.random_crop(x, (tf.shape(x)[0], crop_h, crop_w, c))
+        x = tf.image.resize(x, (h, w))
 
         pos_x = x
         neg_x = x
@@ -71,4 +67,12 @@ def get_datasets(
         .prefetch(tf.data.AUTOTUNE)
     valid_ds = valid_ds.batch(batch_size, drop_remainder=False).map(nonaugment_func).cache().prefetch(tf.data.AUTOTUNE)
     test_ds = test_ds.batch(batch_size, drop_remainder=False).map(nonaugment_func).cache().prefetch(tf.data.AUTOTUNE)
-    return train_ds, valid_ds, test_ds
+
+    if 'mnist' in name:
+        inp_shape = (1, 28*28*1)
+    elif 'cifar' in name:
+        inp_shape = (1, 32*32*3)
+    else:
+        raise ValueError(f'Unknown dataset name: {name}, please use one of: mnist, cifar10, cifar100')
+
+    return train_ds, valid_ds, test_ds, inp_shape

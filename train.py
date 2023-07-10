@@ -43,12 +43,13 @@ def train(
 
     tf.random.set_seed(seed)
     np.random.seed(seed)
-    train_ds, valid_ds, test_ds = datasets
+    train_ds, valid_ds, test_ds, inp_shape = datasets
 
     rng = jax.random.PRNGKey(seed)
     rng, init_rng = jax.random.split(rng)
 
-    params, opt_state = model.initialize(jnp.ones((16, 28*28)), init_rng)
+    # params, opt_state = model.initialize(jnp.ones((16, 28*28)), init_rng)
+    params, opt_state = model.initialize(jnp.ones(inp_shape), init_rng)
 
     for e in range(epochs):
         with tqdm(

@@ -1,6 +1,6 @@
-# FF-jax
+# FF-jax[[Paper]](https://arxiv.org/abs/2212.13345)
 
-Unofficial implementation of Forward-Forward algorithm by jax.[[Paper]](https://arxiv.org/abs/2212.13345)  
+Unofficial implementation of Forward-Forward algorithm by jax.  
 
 
 ## Usage
@@ -13,7 +13,7 @@ cd FF-jax
 conda create --name <env> --file requirements.txt
 conda activate <env>
 # if this not working, install below packages manually  
-# jax, jaxlib [[Link]](https://github.com/google/jax#installation)  
+# jax, jaxlib (https://github.com/google/jax#installation)  
 # einops, tensorflow, tensorflow_datasets, tqdm, hydra-core, hydra-colorlog, omegaconf, gin-config  
 
 # run ! 
