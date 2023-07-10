@@ -13,7 +13,7 @@ cd FF-jax
 conda create --name <env> --file requirements.txt
 conda activate <env>
 # if this not working, install below packages manually  
-# jax, jaxlib [[Link]](https://github.com/google/jax#installation)  
+# jax, jaxlib (https://github.com/google/jax#installation)  
 # einops, tensorflow, tensorflow_datasets, tqdm, hydra-core, hydra-colorlog, omegaconf, gin-config  
 
 # run ! 
@@ -48,7 +48,6 @@ Hyperparameters
 
 ## TODO
  - [ ] Add Local Conv With Peer Normalization
- - [ ] Add weight decay to all optimizers
 
 ## What about...
  - add online training model?
