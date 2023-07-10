@@ -1,12 +1,12 @@
 train.model = @SupervisedModel()
 
-SupervisedModel.loss_fn = @swish_symba_loss
-SupervisedModel.n_layers = 4
+SupervisedModel.loss_fn = @mse_loss
+SupervisedModel.n_layers = 3
 SupervisedModel.n_labels = 10
 
-swish_symba_loss.alpha = 4.
+# swish_symba_loss.alpha = 4.
 # for other losses that using theta
-# softplus_loss.theta = 2.
+mse_loss.theta = 2.
 
 SupervisedModel.layer = @Dense
 Dense.n_units = 2000
@@ -17,13 +17,14 @@ jax.nn.initializers.variance_scaling.distribution = 'truncated_normal'
 Dense.use_bias = True
 Dense.optimizer = @AdaBelief
 
-AdaBelief.learning_rate = 2e-4
+AdaBelief.learning_rate = 5e-5
 AdaBelief.epsilon = 1e-16
 AdaBelief.beta1 = .9
 AdaBelief.beta2 = .999
 
 train.datasets = @get_datasets()
-get_datasets.batch_size = 256
+get_datasets.name = 'mnist'
+get_datasets.batch_size = 512
 get_datasets.flatten = True
 
 train.seed = 42

@@ -48,6 +48,7 @@ Hyperparameters
 
 ## TODO
  - [ ] Add Local Conv With Peer Normalization
+ - [ ] Add weight decay to all optimizers
 
 ## What about...
  - add online training model?

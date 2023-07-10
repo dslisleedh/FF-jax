@@ -6,6 +6,8 @@ from typing import Sequence, Optional, Any
 from copy import deepcopy
 from functools import partial
 
+from abc import abstractmethod
+
 import gin
 
 
@@ -115,8 +117,22 @@ class Dense(Layer):
 #         return x
 
 
+class Model:
+    @abstractmethod
+    def initialize(self, *args, **kwargs):
+        pass
+
+    @abstractmethod
+    def train_step(self, *args, **kwargs):
+        pass
+
+    @abstractmethod
+    def __call__(self, *args, **kwargs):
+        pass
+
+
 @gin.configurable
-class SupervisedModel:
+class SupervisedModel(Model):
     def __init__(
             self, n_layers: int, loss_fn: callable, n_labels: int, layer: Layer
     ):
@@ -142,45 +158,30 @@ class SupervisedModel:
         return params, opt_states
 
     @partial(jax.jit, static_argnums=(0,))
-    def _get_gradients(
+    def train_step(
             self, x: jnp.ndarray, y: jnp.ndarray, sign: jnp.ndarray, params: Sequence[jnp.ndarray],
-    ):
-        grads = []
+            opt_state: Sequence[Pytree]
+    ) -> tuple[jnp.ndarray, Sequence[jnp.ndarray], Sequence[Pytree]]:
+        y = jax.nn.one_hot(y, num_classes=self.n_labels)
         _loss = jnp.zeros(())
+
+        params_new = ()
+        state_new = ()
 
         x = jnp.concatenate([x, y], axis=-1)  # In paper, they replace first 10 pixels with label.
 
-        for layer, param in zip(self.layers, params):
+        for layer, param, state in zip(self.layers, params, opt_state):
             def loss_fn(p):
                 x_normalized, goodness = layer(lax.stop_gradient(x), *p)
                 loss = self.loss_fn(goodness, sign)
                 return loss, x_normalized
-
             grad_fn = jax.value_and_grad(loss_fn, has_aux=True)
             (loss, x), grad = grad_fn(param)
-            grads.append(grad)
-            _loss += loss
-        return _loss, grads
-
-    def _update_gradients(
-            self, params: Sequence[jnp.ndarray], grads: Sequence[jnp.ndarray], opt_state: Sequence[Pytree]
-    ):
-        params_updated = []
-        new_states = []
-        for layer, param, grad, state in zip(self.layers, params, grads, opt_state):
             param_, state_ = layer.optimize(param, grad, state)
-            params_updated.append(param_)
-            new_states.append(state_)
-        return params_updated, new_states
-
-    def train_step(
-            self, x: jnp.ndarray, y: jnp.ndarray, sign: jnp.ndarray, params: Sequence[jnp.ndarray],
-            opt_state: Sequence[Pytree]
-    ):
-        y = jax.nn.one_hot(y, num_classes=self.n_labels)
-        loss, grads = self._get_gradients(x, y, sign, params)
-        params_updated, new_state = self._update_gradients(params, grads, opt_state)
-        return loss, params_updated, new_state
+            params_new += (param_,)
+            state_new += (state_,)
+            _loss += loss
+        return _loss, params_new, state_new
 
     def _return_label(self, i: int, n_samples: int):
         return jax.nn.one_hot(jnp.ones((n_samples,)) * i, self.n_labels)
