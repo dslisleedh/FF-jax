@@ -1,6 +1,6 @@
-# FF-jax
+# FF-jax[[Paper]](https://arxiv.org/abs/2212.13345)
 
-Unofficial implementation of Forward-Forward algorithm by jax.[[Paper]](https://arxiv.org/abs/2212.13345)  
+Unofficial implementation of Forward-Forward algorithm by jax.  
 
 
 ## Usage
