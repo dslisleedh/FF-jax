@@ -49,15 +49,11 @@ def forward_peernorm(fn) -> callable:
         """
         x = fn(*args, **kwargs)
         shape = x.shape
-        mu = jnp.mean(x, axis=[i for i in range(1, shape)], keepdims=True)
+        mu = jnp.mean(x, axis=[i for i in range(1, len(shape))], keepdims=True)
         normalized = x - mu
         goodness = _calculate_goodness(normalized)
         return normalized, goodness
     return _peer_norm
-
-
-# def forward_peernorm <<< I don't understand this yet. Will implement later.
-# Maybe Rebase all layers when implementing local conv + peernorm.
 
 
 class Layer:
