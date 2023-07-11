@@ -14,8 +14,14 @@ import gin
 Pytree = Any
 
 
+def _calculate_goodness(x: jnp.ndarray) -> jnp.ndarray:
+    shape = x.shape
+    return jnp.sum(jnp.square(x), axis=[i for i in range(1, len(shape))])
+
+
 def forward_layernorm(fn, eps: float = 1e-8) -> callable:
-    def _layer_norm_fast_approx(*args, **kwargs) -> tuple[jnp.ndarray, jnp.ndarray]:
+    # TODO: Is there a better way to do this? It's hard to control the eps.
+    def _layer_norm_fast(*args, **kwargs) -> tuple[jnp.ndarray, jnp.ndarray]:
         """
         In the paper, they layer normalized the active vector
         using simple normalization not subtracting mean and dividing std.
@@ -26,12 +32,28 @@ def forward_layernorm(fn, eps: float = 1e-8) -> callable:
             (B, H, W, C) / (B, H, W, 1)
         """
         x = fn(*args, **kwargs)
-        shape = x.shape
         norm = jnp.linalg.norm(x, axis=-1, ord=2, keepdims=True)
         normalized = x / (norm + eps)
-        goodness = jnp.sum(jnp.square(x), axis=[i for i in range(1, len(shape))])
+        goodness = _calculate_goodness(x)
         return normalized, goodness
-    return _layer_norm_fast_approx
+    return _layer_norm_fast
+
+
+def forward_peernorm(fn) -> callable:
+    def _peer_norm(*args, **kwargs) -> tuple[jnp.ndarray, jnp.ndarray]:
+        """
+        When Using LocalConv, they used "peer norm" to prevent any of the hidden units
+        from being extremely active or permanently inactive.
+
+        What is scaling coefficient?
+        """
+        x = fn(*args, **kwargs)
+        shape = x.shape
+        mu = jnp.mean(x, axis=[i for i in range(1, shape)], keepdims=True)
+        normalized = x - mu
+        goodness = _calculate_goodness(normalized)
+        return normalized, goodness
+    return _peer_norm
 
 
 # def forward_peernorm <<< I don't understand this yet. Will implement later.
@@ -187,14 +209,12 @@ class SupervisedModel(Model):
             _loss += loss
         return _loss, params_new, state_new
 
-    def _return_label(self, i: int, n_samples: int) -> jnp.ndarray:
+    def _return_label(self, i: jnp.ndarray | int, n_samples: jnp.ndarray | int) -> jnp.ndarray:
         return jax.nn.one_hot(jnp.ones((n_samples,)) * i, self.n_labels)
 
     def inference(self, x: jnp.ndarray, params: Sequence[jnp.ndarray]) -> jnp.ndarray:
-        label_fn = partial(self._return_label, n_samples=x.shape[0])
-        labels = jax.vmap(label_fn)(jnp.arange(self.n_labels))
-        inference = partial(self.__call__, x=x, params=params)
-        goodness_labels = jax.vmap(inference)(y=labels)
+        labels = jax.vmap(self._return_label, in_axes=(0, None))(jnp.arange(self.n_labels), x.shape[0])
+        goodness_labels = jax.vmap(self.__call__, in_axes=(None, 0, None))(x, labels, params)
         goodness_labels = jnp.argmax(goodness_labels, axis=0)
         return goodness_labels
 
