@@ -14,8 +14,8 @@ import gin
 Pytree = Any
 
 
-def forward_layernorm(fn, eps: float = 1e-8):
-    def _layer_norm_fast_approx(*args, **kwargs):
+def forward_layernorm(fn, eps: float = 1e-8) -> callable:
+    def _layer_norm_fast_approx(*args, **kwargs) -> tuple[jnp.ndarray, jnp.ndarray]:
         """
         In the paper, they layer normalized the active vector
         using simple normalization not subtracting mean and dividing std.
@@ -44,7 +44,9 @@ class Layer:
         self.use_bias = use_bias
         self.optimizers = [deepcopy(optimizer()) for _ in range(2 if use_bias else 1)]
 
-    def optimize(self, params: Sequence[jnp.ndarray], grads: Sequence[jnp.ndarray], opt_state: Sequence[Pytree]):
+    def optimize(
+            self, params: Sequence[jnp.ndarray], grads: Sequence[jnp.ndarray], opt_state: Sequence[Pytree]
+    ) -> tuple[Sequence[jnp.ndarray], Sequence[Pytree]]:
         update_params = []
         new_states = []
         for optimizer, param, grad, state in zip(self.optimizers, params, grads, opt_state):
@@ -53,7 +55,7 @@ class Layer:
             new_states.append(new_state)
         return update_params, new_states
 
-    def _initialize(self, rng: jax.random.PRNGKey, shape: Sequence):
+    def _initialize(self, rng: jax.random.PRNGKey, shape: Sequence) -> tuple[Sequence[jnp.ndarray], Sequence[Pytree]]:
         params = [self.init_func(rng, shape, dtype=jnp.float32)]  # w
         if self.use_bias:
             b = jnp.zeros(shape[-1])
@@ -72,13 +74,15 @@ class Dense(Layer):
         super().__init__(init_func, use_bias, optimizer)
         self.n_units = n_units
 
-    def initialize(self, x: jnp.ndarray, rng: jax.random.PRNGKey):
+    def initialize(
+            self, x: jnp.ndarray, rng: jax.random.PRNGKey
+    ) -> tuple[jnp.ndarray, Sequence[jnp.ndarray], Sequence[Pytree]]:
         shape = (x.shape[-1], self.n_units)
         params, opt_state = super()._initialize(rng, shape)
         return self(x, *params), params, opt_state
 
     @forward_layernorm
-    def __call__(self, x: jnp.ndarray, w: jnp.ndarray, b: Optional[jnp.ndarray] = None):
+    def __call__(self, x: jnp.ndarray, w: jnp.ndarray, b: Optional[jnp.ndarray] = None) -> jnp.ndarray:
         x = jnp.dot(x, w)
         if self.use_bias:
             x = x + b
@@ -141,8 +145,9 @@ class SupervisedModel(Model):
         self.layer = layer
         self.layers = []
         self.n_labels = n_labels
+        # TODO: To get Lists of Layers. Than n_layers should be removed. And Loss_fns must be stored in each layer.
 
-    def initialize(self, x: jnp.ndarray, rng: jax.random.PRNGKey):
+    def initialize(self, x: jnp.ndarray, rng: jax.random.PRNGKey) -> tuple[Sequence[jnp.ndarray], Sequence[Pytree]]:
         rngs = jax.random.split(rng, self.n_layers)
         pseudo_y = jnp.ones((x.shape[0], self.n_labels))
         x = jnp.concatenate([x, pseudo_y], axis=-1)
@@ -163,12 +168,11 @@ class SupervisedModel(Model):
             opt_state: Sequence[Pytree]
     ) -> tuple[jnp.ndarray, Sequence[jnp.ndarray], Sequence[Pytree]]:
         y = jax.nn.one_hot(y, num_classes=self.n_labels)
-        _loss = jnp.zeros(())
-
-        params_new = ()
-        state_new = ()
-
         x = jnp.concatenate([x, y], axis=-1)  # In paper, they replace first 10 pixels with label.
+
+        params_new = []
+        state_new = []
+        _loss = jnp.zeros(())
 
         for layer, param, state in zip(self.layers, params, opt_state):
             def loss_fn(p):
@@ -178,15 +182,15 @@ class SupervisedModel(Model):
             grad_fn = jax.value_and_grad(loss_fn, has_aux=True)
             (loss, x), grad = grad_fn(param)
             param_, state_ = layer.optimize(param, grad, state)
-            params_new += (param_,)
-            state_new += (state_,)
+            params_new.append(param_)
+            state_new.append(state_)
             _loss += loss
         return _loss, params_new, state_new
 
-    def _return_label(self, i: int, n_samples: int):
+    def _return_label(self, i: int, n_samples: int) -> jnp.ndarray:
         return jax.nn.one_hot(jnp.ones((n_samples,)) * i, self.n_labels)
 
-    def inference(self, x: jnp.ndarray, params: Sequence[jnp.ndarray]):
+    def inference(self, x: jnp.ndarray, params: Sequence[jnp.ndarray]) -> jnp.ndarray:
         label_fn = partial(self._return_label, n_samples=x.shape[0])
         labels = jax.vmap(label_fn)(jnp.arange(self.n_labels))
         inference = partial(self.__call__, x=x, params=params)
@@ -195,7 +199,7 @@ class SupervisedModel(Model):
         return goodness_labels
 
     @partial(jax.jit, static_argnums=(0,))
-    def __call__(self, x: jnp.ndarray, y: jnp.ndarray, params: Sequence[jnp.ndarray]):
+    def __call__(self, x: jnp.ndarray, y: jnp.ndarray, params: Sequence[jnp.ndarray]) -> jnp.ndarray:
         # Return goodness of given label
         goodness_total = jnp.zeros((x.shape[0],))
         x = jnp.concatenate([x, y], axis=-1)
