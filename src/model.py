@@ -14,13 +14,7 @@ import gin
 Pytree = Any
 
 
-def _calculate_goodness(x: jnp.ndarray) -> jnp.ndarray:
-    shape = x.shape
-    return jnp.sum(jnp.square(x), axis=[i for i in range(1, len(shape))])
-
-
 def forward_layernorm(fn, eps: float = 1e-8) -> callable:
-    # TODO: Is there a better way to do this? It's hard to control the eps.
     def _layer_norm_fast(*args, **kwargs) -> tuple[jnp.ndarray, jnp.ndarray]:
         """
         In the paper, they layer normalized the active vector
@@ -29,12 +23,14 @@ def forward_layernorm(fn, eps: float = 1e-8) -> callable:
         if Dense:
             (B, N) / (B, 1)
         if Conv2D:
-            (B, H, W, C) / (B, H, W, 1)
+            (B, H, W, C) / (B, 1, 1, 1)
         """
         x = fn(*args, **kwargs)
-        norm = jnp.linalg.norm(x, axis=-1, ord=2, keepdims=True)
+        shape = x.shape
+        reduce_dim = tuple(i for i in range(1, len(shape)))
+        norm = jnp.linalg.norm(x, axis=reduce_dim, ord=2, keepdims=True)
         normalized = x / (norm + eps)
-        goodness = _calculate_goodness(x)
+        goodness = jnp.sum(x, axis=reduce_dim)
         return normalized, goodness
     return _layer_norm_fast
 
