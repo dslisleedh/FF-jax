@@ -35,23 +35,6 @@ def forward_layernorm(fn, eps: float = 1e-8) -> callable:
     return _layer_norm_fast
 
 
-def forward_peernorm(fn) -> callable:
-    def _peer_norm(*args, **kwargs) -> tuple[jnp.ndarray, jnp.ndarray]:
-        """
-        When Using LocalConv, they used "peer norm" to prevent any of the hidden units
-        from being extremely active or permanently inactive.
-
-        What is scaling coefficient?
-        """
-        x = fn(*args, **kwargs)
-        shape = x.shape
-        mu = jnp.mean(x, axis=[i for i in range(1, len(shape))], keepdims=True)
-        normalized = x - mu
-        goodness = _calculate_goodness(normalized)
-        return normalized, goodness
-    return _peer_norm
-
-
 class Layer:
     def __init__(self, init_func: callable, use_bias: bool, optimizer: callable):
         self.init_func = init_func()
